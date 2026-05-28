@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>AI Invoice</title>
+  <meta name="description" content="AI Invoice generator. Clean, fast, and professional." />
+
+
+  <!-- PWA / Mobile App Support -->
+  <meta name="theme-color" content="#7c3aed" />
+  <meta name="color-scheme" content="dark light" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="AI Invoice" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="application-name" content="AI Invoice" />
+  <meta name="msapplication-TileColor" content="#7c3aed" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Fonts: Playfair Display + DM Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <!-- jsPDF CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <!-- html2canvas for PNG/PDF export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+
+   <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg" />
+  
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="css/style.css" />
+
+  <!-- Tailwind config -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['Playfair Display', 'serif'],
+            body: ['DM Sans', 'sans-serif'],
+            mono: ['DM Mono', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+
+
+  <!-- Paid Verified Stamp CSS -->
+  <style>
+    .invoice-preview-container,
+    #invoiceInner {
+      position: relative;
+      overflow: visible;
+    }
+    .paid-verified-stamp {
+      position: absolute;
+      top: clamp(72px, 10vw, 128px);
+      right: clamp(28px, 7vw, 72px);
+      z-index: 999;
+      width: clamp(112px, 18vw, 172px);
+      height: clamp(112px, 18vw, 172px);
+      border: clamp(4px, 0.7vw, 6px) solid #059669;
+      border-radius: 999px;
+      color: #059669;
+      background: rgba(255,255,255,0.42);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      transform: rotate(-14deg);
+      font-family: 'DM Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      opacity: 0.88;
+      mix-blend-mode: normal;
+      pointer-events: none;
+      box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.08) inset;
+    }
+    .paid-verified-stamp::before,
+    .paid-verified-stamp::after {
+      content: "";
+      position: absolute;
+      inset: clamp(7px, 1.2vw, 11px);
+      border: 1.5px solid currentColor;
+      border-radius: 999px;
+      opacity: 0.72;
+    }
+    .paid-verified-stamp::after {
+      inset: clamp(14px, 2vw, 20px);
+      opacity: 0.36;
+    }
+    .paid-verified-stamp .paid-word {
+      font-size: clamp(25px, 4.2vw, 42px);
+      line-height: 1;
+    }
+    .paid-verified-stamp .verified-word {
+      margin-top: 0.35rem;
+      padding-top: 0.3rem;
+      border-top: 2px solid currentColor;
+      font-size: clamp(8px, 1.3vw, 13px);
+      line-height: 1;
+      letter-spacing: 0.18em;
+    }
+    .payment-toggle-card {
+      border: 1px solid rgba(5, 150, 105, 0.35);
+      background: rgba(5, 150, 105, 0.08);
+    }
+    .payment-toggle-card input:checked {
+      accent-color: #059669;
+    }
+    @media print {
+      .paid-verified-stamp {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        opacity: 0.82;
+      }
+    }
+  </style>
+
+</head>
+<body class="ai-skin font-body bg-spark-bg text-spark-text transition-colors duration-500 min-h-screen">
+
+  <!-- Ambient Background Canvas -->
+  <canvas id="ambientCanvas" class="fixed inset-0 pointer-events-none z-0" aria-hidden="true"></canvas>
+
+  <!-- Toast Container -->
+  <div id="toastContainer" class="fixed bottom-6 right-6 z-[9999] flex flex-col gap-3 pointer-events-none" aria-live="polite"></div>
+
+  <!-- ══════════════════════════════════════════ HEADER ══════════════════════════════════════════ -->
+  <header class="relative z-10 border-b border-spark-border bg-spark-surface/80 backdrop-blur-xl">
+    <div class="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between">
+
+      <!-- Logo -->
+      <a href="#" class="flex items-center gap-3 group" id="logoLink">
+        <div class="ai-brand-mark w-9 h-9 rounded-xl bg-gradient-to-br from-[var(--accent)] to-[var(--accent-dark)] flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M7 8.5L12 5L17 8.5V15.5L12 19L7 15.5V8.5Z" stroke="white" stroke-width="1.7" stroke-linejoin="round"/>
+            <path d="M12 5V19M7 8.5L17 15.5M17 8.5L7 15.5" stroke="white" stroke-width="1.05" stroke-linecap="round" opacity="0.75"/>
+            <circle cx="12" cy="5" r="1.8" fill="white"/>
+            <circle cx="17" cy="8.5" r="1.8" fill="white"/>
+            <circle cx="17" cy="15.5" r="1.8" fill="white"/>
+            <circle cx="12" cy="19" r="1.8" fill="white"/>
+            <circle cx="7" cy="15.5" r="1.8" fill="white"/>
+            <circle cx="7" cy="8.5" r="1.8" fill="white"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="font-display text-xl font-bold leading-none text-spark-text">AI Invoice</h1>
+          <p class="text-[10px] text-spark-muted font-body tracking-widest uppercase mt-0.5">AI-Powered Invoice System</p>
+        </div>
+      </a>
+
+      <!-- Header Actions -->
+      <div class="flex items-center gap-3">
+
+        <!-- Saved Invoices Button -->
+        <button id="savedInvoicesBtn" class="spark-btn-ghost flex items-center gap-2 text-sm" title="Saved Invoices">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+            <polyline points="17 21 17 13 7 13 7 21"/>
+            <polyline points="7 3 7 8 15 8"/>
+          </svg>
+          <span class="hidden sm:inline">Saved</span>
+          <span id="savedCount" class="spark-badge">0</span>
+        </button>
+
+        <!-- GitHub Link -->
+        <a href="https://github.com/ICodingStack/invoicespark" target="_blank" class="spark-btn-ghost" title="View on GitHub" aria-label="GitHub">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+          </svg>
+        </a>
+
+        <!-- Dark/Light Toggle -->
+        <button id="themeToggle" class="spark-btn-ghost" title="Toggle theme" aria-label="Toggle dark/light mode">
+          <svg id="moonIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
+          </svg>
+          <svg id="sunIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="hidden">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/>
+            <line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ══════════════════════════════════════════ MAIN ══════════════════════════════════════════ -->
+  <main class="relative z-10 max-w-[1600px] mx-auto px-4 sm:px-6 py-8">
+
+    <!-- Top Controls Bar -->
+    <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
+      <!-- Template Selector -->
+      <div class="flex items-center gap-3">
+        <span class="text-xs text-spark-muted uppercase tracking-widest font-medium">Template</span>
+        <div class="flex flex-wrap items-center gap-2" id="templateSelector" role="group" aria-label="Invoice templates">
+          <button class="template-btn active" data-template="minimal" title="Minimal">Minimal</button>
+          <button class="template-btn" data-template="modern" title="Modern">Modern</button>
+          <button class="template-btn" data-template="elegant" title="Elegant">Elegant</button>
+          <button class="template-btn" data-template="bold" title="Bold">Bold</button>
+          <button class="template-btn" data-template="luxury" title="Luxury">Luxury</button>
+          <button class="template-btn" data-template="receipt-clean" title="Receipt Clean">Receipt Clean</button>
+          <button class="template-btn" data-template="receipt-premium" title="Receipt Premium">Receipt Premium</button>
+          <button class="template-btn" data-template="receipt-compact" title="Receipt Compact">Receipt Compact</button>
+        </div>
+      </div>
+
+      <!-- Color & Actions -->
+      <div class="flex items-center gap-3">
+        <span class="text-xs text-spark-muted uppercase tracking-widest font-medium hidden sm:inline">Accent</span>
+        <!-- Color Presets -->
+        <div class="flex items-center gap-1.5" id="colorPresets" role="group" aria-label="Color presets">
+          <button class="color-swatch active" data-color="#6366f1" style="background:#6366f1" title="Indigo" aria-label="Indigo"></button>
+          <button class="color-swatch" data-color="#0ea5e9" style="background:#0ea5e9" title="Sky" aria-label="Sky"></button>
+          <button class="color-swatch" data-color="#10b981" style="background:#10b981" title="Emerald" aria-label="Emerald"></button>
+          <button class="color-swatch" data-color="#f59e0b" style="background:#f59e0b" title="Amber" aria-label="Amber"></button>
+          <button class="color-swatch" data-color="#ec4899" style="background:#ec4899" title="Pink" aria-label="Pink"></button>
+          <button class="color-swatch" data-color="#8b5cf6" style="background:#8b5cf6" title="Violet" aria-label="Violet"></button>
+          <!-- Custom Color Picker -->
+          <label class="color-swatch custom-color-btn" title="Custom color" aria-label="Custom color">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+            <input type="color" id="customColor" class="sr-only" value="#6366f1" />
+          </label>
+        </div>
+
+        <!-- Export Buttons -->
+        <div class="flex items-center gap-2 ml-2">
+          <button id="saveInvoiceBtn" class="spark-btn-secondary text-xs gap-1.5">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            Save
+          </button>
+          <button id="exportPngBtn" class="spark-btn-secondary text-xs gap-1.5">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            PNG
+          </button>
+          <button id="printBtn" class="spark-btn-secondary text-xs gap-1.5">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            Print
+          </button>
+          <button id="exportPdfBtn" class="spark-btn-primary text-xs gap-1.5">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            Export PDF
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ TWO-COLUMN LAYOUT ══ -->
+    <div class="grid grid-cols-1 xl:grid-cols-[480px_1fr] gap-8">
+
+      <!-- ── LEFT: FORM PANEL ── -->
+      <aside class="space-y-5" id="formPanel">
+
+        <!-- FROM Section -->
+        <div class="spark-card">
+          <div class="spark-card-header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <h2 class="spark-card-title">Your Business</h2>
+          </div>
+          <div class="space-y-3">
+            <!-- Logo Upload -->
+            <div class="logo-upload-zone" id="logoUploadZone">
+              <div id="logoPlaceholder" class="flex flex-col items-center gap-2 text-spark-muted">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                <span class="text-xs">Upload Logo (optional)</span>
+              </div>
+              <img id="logoPreview" src="" alt="Company logo" class="hidden max-h-16 max-w-full object-contain" />
+              <input type="file" id="logoInput" accept="image/*" class="hidden" aria-label="Upload company logo" />
+            </div>
+
+            <div class="spark-input-group">
+              <label class="spark-label" for="fromName">Company / Your Name *</label>
+              <input id="fromName" type="text" class="spark-input" placeholder="Company name" data-field="fromName" />
+            </div>
+            <div class="spark-input-group">
+              <label class="spark-label" for="fromEmail">Email</label>
+              <input id="fromEmail" type="email" class="spark-input" placeholder="Email address" data-field="fromEmail" />
+            </div>
+            <div class="spark-input-group">
+              <label class="spark-label" for="fromAddress">Address</label>
+              <textarea id="fromAddress" class="spark-input spark-textarea" rows="2" placeholder="Business address" data-field="fromAddress"></textarea>
+            </div>
+            <div class="spark-input-group">
+              <label class="spark-label" for="fromPhone">Phone</label>
+              <input id="fromPhone" type="tel" class="spark-input" placeholder="Phone number" data-field="fromPhone" />
+            </div>
+          </div>
+        </div>
+
+        <!-- BILL TO Section -->
+        <div class="spark-card">
+          <div class="spark-card-header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+            <h2 class="spark-card-title">Bill To</h2>
+          </div>
+          <div class="space-y-3">
+            <div class="spark-input-group">
+              <label class="spark-label" for="toName">Client Name *</label>
+              <input id="toName" type="text" class="spark-input" placeholder="Client name" data-field="toName" />
+            </div>
+            <div class="spark-input-group">
+              <label class="spark-label" for="toCompany">Phone</label>
+              <input id="toCompany" type="tel" class="spark-input" placeholder="Client phone number" data-field="toCompany" />
+            </div>
+            <div class="spark-input-group">
+              <label class="spark-label" for="toEmail">Email</label>
+              <input id="toEmail" type="email" class="spark-input" placeholder="Client email address" data-field="toEmail" />
+            </div>
+            <div class="spark-input-group">
+              <label class="spark-label" for="toAddress">Address</label>
+              <textarea id="toAddress" class="spark-input spark-textarea" rows="2" placeholder="Client address" data-field="toAddress"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- INVOICE DETAILS Section -->
+        <div class="spark-card">
+          <div class="spark-card-header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <h2 class="spark-card-title">Invoice Details</h2>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="spark-input-group">
+              <label class="spark-label" for="invoiceNumber">Invoice #</label>
+              <input id="invoiceNumber" type="text" class="spark-input font-mono" placeholder="Auto generated" data-field="invoiceNumber" />
+            </div>
+            <div class="spark-input-group">
+              <label class="spark-label" for="currency">Currency</label>
+              <select id="currency" class="spark-input" data-field="currency">
+                <option value="USD">$ USD</option>
+                <option value="EUR">€ EUR</option>
+                <option value="GBP">£ GBP</option>
+                <option value="JPY">¥ JPY</option>
+                <option value="CAD">$ CAD</option>
+                <option value="AUD">$ AUD</option>
+                <option value="MYR">RM MYR</option>
+                <option value="SGD">$ SGD</option>
+              </select>
+            </div>
+            <div class="spark-input-group">
+              <label class="spark-label" for="issueDate">Issue Date</label>
+              <input id="issueDate" type="date" class="spark-input" data-field="issueDate" />
+            </div>
+            <div class="spark-input-group">
+              <label class="spark-label" for="dueDate">Due Date</label>
+              <input id="dueDate" type="date" class="spark-input" data-field="dueDate" />
+            </div>
+            <label class="payment-toggle-card col-span-2 flex items-center justify-between gap-3 rounded-xl p-3 cursor-pointer select-none">
+              <div>
+                <span class="spark-label block mb-1">Payment Status</span>
+                <span class="text-xs text-spark-muted">Tick when the invoice is paid to show the PAID VERIFIED stamp.</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-mono uppercase tracking-widest text-emerald-500">Paid</span>
+                <input id="isPaid" type="checkbox" class="h-5 w-5" data-field="isPaid" />
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- LINE ITEMS Section -->
+        <div class="spark-card">
+          <div class="spark-card-header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            <h2 class="spark-card-title">Line Items</h2>
+          </div>
+
+          <!-- Items Header -->
+          <div class="grid grid-cols-[1fr_60px_80px_32px] gap-2 mb-2 px-1">
+            <span class="text-[10px] uppercase tracking-widest text-spark-muted font-medium">Description</span>
+            <span class="text-[10px] uppercase tracking-widest text-spark-muted font-medium text-center">Qty</span>
+            <span class="text-[10px] uppercase tracking-widest text-spark-muted font-medium text-right">Price</span>
+            <span></span>
+          </div>
+
+          <!-- Items List -->
+          <div id="itemsList" class="space-y-2"></div>
+
+          <!-- Add Item Button -->
+          <button id="addItemBtn" class="spark-add-btn w-full mt-3">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Line Item
+          </button>
+
+          <!-- Totals -->
+          <div class="mt-5 space-y-2 pt-4 border-t border-spark-border">
+            <div class="flex justify-between items-center text-sm">
+              <span class="text-spark-muted">Subtotal</span>
+              <span id="subtotalDisplay" class="font-mono font-medium">$0.00</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <div class="flex items-center gap-2">
+                <span class="text-sm text-spark-muted">Tax</span>
+                <input id="taxRate" type="number" min="0" max="100" step="0.1" class="spark-input w-16 text-sm py-1 text-center font-mono" placeholder="0" value="0" data-field="taxRate" />
+                <span class="text-sm text-spark-muted">%</span>
+              </div>
+              <span id="taxDisplay" class="font-mono font-medium text-sm">$0.00</span>
+            </div>
+            <div class="flex justify-between items-center pt-2 border-t border-spark-border">
+              <span class="font-display text-lg font-semibold">Total</span>
+              <span id="totalDisplay" class="font-mono text-xl font-bold text-accent">$0.00</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- NOTES Section -->
+        <div class="spark-card">
+          <div class="spark-card-header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            <h2 class="spark-card-title">Notes & Terms</h2>
+          </div>
+          <div class="space-y-3">
+            <div class="spark-input-group">
+              <label class="spark-label" for="notes">Notes (visible on invoice)</label>
+              <textarea id="notes" class="spark-input spark-textarea" rows="3" placeholder="Notes visible on invoice" data-field="notes"></textarea>
+            </div>
+            <div class="spark-input-group">
+              <label class="spark-label" for="terms">Payment Terms</label>
+              <input id="terms" type="text" class="spark-input" placeholder="Payment terms" data-field="terms" />
+            </div>
+          </div>
+        </div>
+
+      </aside>
+
+      <!-- ── RIGHT: PREVIEW PANEL ── -->
+      <section id="previewPanel" class="min-h-[700px]">
+        <div class="sticky top-8">
+          <!-- Preview Controls -->
+          <div class="flex items-center justify-between mb-4">
+            <span class="text-xs text-spark-muted uppercase tracking-widest font-medium">Live Preview</span>
+            <div class="flex items-center gap-2">
+              <span class="flex items-center gap-1.5 text-xs text-emerald-400">
+                <span class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
+                Auto-updating
+              </span>
+            </div>
+          </div>
+
+          <!-- Invoice Preview Container -->
+          <div id="invoicePreviewWrapper" class="relative">
+            <!-- Decorative shadow layers -->
+            <div class="absolute inset-0 translate-y-3 translate-x-3 rounded-2xl bg-black/20 blur-xl -z-10"></div>
+            <div class="absolute inset-0 translate-y-1.5 translate-x-1.5 rounded-2xl bg-black/10 blur-md -z-10"></div>
+
+            <!-- The actual invoice preview -->
+            <div id="invoicePreview" class="invoice-preview-container">
+              <!-- Populated dynamically by JS -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- ══════════════════════════════════════════ SAVED INVOICES DRAWER ══════════════════════════════════════════ -->
+  <div id="savedDrawerOverlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden opacity-0 transition-opacity duration-300" aria-hidden="true"></div>
+  <aside id="savedDrawer" class="fixed right-0 top-0 h-full w-full max-w-sm bg-spark-surface border-l border-spark-border z-50 translate-x-full transition-transform duration-300 overflow-y-auto shadow-2xl" aria-label="Saved invoices drawer">
+    <div class="p-6">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="font-display text-xl font-semibold">Saved Invoices</h2>
+        <button id="closeDrawerBtn" class="spark-btn-ghost" aria-label="Close saved invoices">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div id="savedInvoicesList" class="space-y-3">
+        <p class="text-spark-muted text-sm text-center py-8">No saved invoices yet.<br>Fill in your invoice and click Save.</p>
+      </div>
+    </div>
+  </aside>
+
+    <!-- Footer -->
+  <footer class="relative z-10 border-t border-spark-border bg-spark-surface/80 backdrop-blur-xl mt-16">
+    <div class="max-w-[1600px] mx-auto px-6 py-8 text-center">
+      <p class="text-sm text-spark-muted">
+        Develop by NAS
+      </p>
+    </div>
+  </footer>
+
+  <!-- ══════════════════════════════════════════ PRINT STYLES ══════════════════════════════════════════ -->
+  <div id="printContainer" class="hidden"></div>
+
+  <!-- JavaScript files -->
+  <script type="module" src="js/utils.js"></script>
+  <script type="module" src="js/invoice-generator.js"></script>
+  <script type="module" src="js/pdf-export.js"></script>
+  <script type="module" src="js/main.js"></script>
+  <script src="js/pwa.js" defer></script>
+</body>
+</html>

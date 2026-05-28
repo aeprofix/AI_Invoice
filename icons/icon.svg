@@ -1,0 +1,15 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<linearGradient id="g" x1="44" y1="40" x2="470" y2="488" gradientUnits="userSpaceOnUse">
+<stop stop-color="#06B6D4"/><stop offset="0.52" stop-color="#6366F1"/><stop offset="1" stop-color="#8B5CF6"/>
+</linearGradient>
+<filter id="glow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="12" result="blur"/><feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.25 0 0 0 0 0.85 0 0 0 0 1 0 0 0 .55 0"/><feBlend in="SourceGraphic"/></filter>
+</defs>
+<rect x="36" y="36" width="440" height="440" rx="112" fill="url(#g)"/>
+<path d="M158 160L256 104L354 160V272L256 344L158 272V160Z" stroke="white" stroke-width="20" stroke-linejoin="round" opacity=".94"/>
+<path d="M256 104V344M158 160L354 272M354 160L158 272" stroke="white" stroke-width="10" stroke-linecap="round" opacity=".62"/>
+<g filter="url(#glow)" fill="white">
+<circle cx="256" cy="104" r="24"/><circle cx="354" cy="160" r="24"/><circle cx="354" cy="272" r="24"/><circle cx="256" cy="344" r="24"/><circle cx="158" cy="272" r="24"/><circle cx="158" cy="160" r="24"/>
+</g>
+<text x="256" y="268" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="116" font-weight="900" fill="white" letter-spacing="-8">AI</text>
+</svg>
