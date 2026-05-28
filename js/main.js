@@ -633,15 +633,46 @@ function initSaveLoad() {
   });
 }
 
+let savedSearchQuery = "";
+
+function getSavedSearchHaystack(inv) {
+  const isReceipt = Boolean(inv.isPaid || inv.paidAt);
+  return [
+    inv.invoiceNumber,
+    inv.toName,
+    inv.toCompany,
+    inv.toEmail,
+    inv.toAddress,
+    inv.currency,
+    formatCurrency(inv.total || 0, inv.currency || "USD"),
+    inv.savedAt ? new Date(inv.savedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "",
+    isReceipt ? "paid receipt official paid verified" : "invoice unpaid",
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
 function renderSavedList() {
   const list = document.getElementById("savedInvoicesList");
-  const invoices = loadSavedInvoices();
+  const allInvoices = loadSavedInvoices();
+  const searchInput = document.getElementById("savedSearchInput");
+  const query = (searchInput?.value || savedSearchQuery || "").trim().toLowerCase();
+  savedSearchQuery = query;
+  const invoices = query
+    ? allInvoices.filter((inv) => getSavedSearchHaystack(inv).includes(query))
+    : allInvoices;
 
   // Update badge
-  document.getElementById("savedCount").textContent = invoices.length;
+  document.getElementById("savedCount").textContent = allInvoices.length;
+
+  if (!allInvoices.length) {
+    list.innerHTML = `<p class="text-spark-muted text-sm text-center py-8">No saved invoices yet.<br>Fill in your invoice and click Save.</p>`;
+    return;
+  }
 
   if (!invoices.length) {
-    list.innerHTML = `<p class="text-spark-muted text-sm text-center py-8">No saved invoices yet.<br>Fill in your invoice and click Save.</p>`;
+    list.innerHTML = `<p class="text-spark-muted text-sm text-center py-8">No saved invoice or receipt found.</p>`;
     return;
   }
 
@@ -721,6 +752,29 @@ function initDrawer() {
   document
     .getElementById("savedDrawerOverlay")
     .addEventListener("click", closeDrawer);
+
+  const searchInput = document.getElementById("savedSearchInput");
+  const searchBtn = document.getElementById("savedSearchBtn");
+  if (searchBtn) {
+    searchBtn.addEventListener("click", () => {
+      savedSearchQuery = (searchInput?.value || "").trim().toLowerCase();
+      renderSavedList();
+    });
+  }
+  if (searchInput) {
+    searchInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        savedSearchQuery = searchInput.value.trim().toLowerCase();
+        renderSavedList();
+      }
+    });
+    searchInput.addEventListener("input", () => {
+      if (!searchInput.value.trim()) {
+        savedSearchQuery = "";
+        renderSavedList();
+      }
+    });
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════
