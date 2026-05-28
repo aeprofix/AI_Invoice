@@ -1,5 +1,5 @@
 /* AI Invoice PWA Service Worker */
-const CACHE_VERSION = "ai-invoice-v1.0.7-ai-look";
+const CACHE_VERSION = "ai-invoice-v1.0.8-saved-search";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
